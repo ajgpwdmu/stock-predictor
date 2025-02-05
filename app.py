@@ -1,7 +1,5 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify
 import yfinance as yf
-import numpy as np
-import pandas as pd
 
 app = Flask(__name__)
 
@@ -9,36 +7,19 @@ app = Flask(__name__)
 def home():
     return "Stock Predictor API is running!"
 
-@app.route('/stock/<ticker>')
+@app.route('/stock/<ticker>', methods=['GET'])
 def get_stock_price(ticker):
     try:
+        # Yahoo Financeから株価情報を取得
         stock = yf.Ticker(ticker)
         data = stock.history(period="1d")
-        price = data["Close"].iloc[-1] if not data.empty else None
-        return jsonify({"ticker": ticker, "price": price})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
 
-@app.route('/predict/<ticker>', methods=['GET'])
-def predict_stock_price(ticker):
-    try:
-        # 株価データを取得（過去10日分）
-        stock = yf.Ticker(ticker)
-        data = stock.history(period="10d")
-
-        if data.empty:
-            return jsonify({"error": "No data found"}), 404
-
-        # 終値データを取得
-        close_prices = data["Close"].values
-
-        # シンプルな移動平均予測（直近5日間の平均を次の日の予測値とする）
-        if len(close_prices) < 5:
-            return jsonify({"error": "Not enough data for prediction"}), 400
-
-        predicted_price = np.mean(close_prices[-5:])  # 直近5日間の平均値を予測値とする
-
-        return jsonify({"ticker": ticker, "predicted_price": predicted_price})
+        # 株価データが空でない場合、最新の終値を取得
+        if not data.empty:
+            price = data["Close"].iloc[-1]
+            return jsonify({"ticker": ticker, "price": price})
+        else:
+            return jsonify({"error": "No stock data available"}), 404
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
