@@ -1,28 +1,25 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
+import os
 import yfinance as yf
 
 app = Flask(__name__)
 
-@app.route('/')
+@app.route("/")
 def home():
     return "Stock Predictor API is running!"
 
-@app.route('/stock/<ticker>', methods=['GET'])
-def get_stock_price(ticker):
-    try:
-        # Yahoo Financeから株価情報を取得
-        stock = yf.Ticker(ticker)
-        data = stock.history(period="1d")
+@app.route("/predict", methods=["GET"])
+def predict():
+    symbol = request.args.get("symbol", "AAPL")  # デフォルトでAppleの株価
+    stock = yf.Ticker(symbol)
+    hist = stock.history(period="1d")
 
-        # 株価データが空でない場合、最新の終値を取得
-        if not data.empty:
-            price = data["Close"].iloc[-1]
-            return jsonify({"ticker": ticker, "price": price})
-        else:
-            return jsonify({"error": "No stock data available"}), 404
+    if hist.empty:
+        return jsonify({"error": "Invalid stock symbol or no data available"}), 400
 
-    except Exception as e:
-        return jsonify({"error": f"Failed to fetch data: {str(e)}"}), 500
+    latest_price = hist["Close"].iloc[-1]  # 最新の終値
+    return jsonify({"symbol": symbol, "latest_price": latest_price})
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))  # 環境変数からポートを取得
+    app.run(host="0.0.0.0", port=port, debug=True)
